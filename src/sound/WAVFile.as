@@ -21,6 +21,8 @@ package sound {
 	import flash.utils.ByteArray;
 	import flash.utils.Endian;
 
+	import logging.LogLevel;
+
 public class WAVFile {
 
 	public static function empty():ByteArray {
@@ -119,7 +121,15 @@ public class WAVFile {
 
 	public static function extractSamples(waveData:ByteArray):Vector.<int> {
 		var result:Vector.<int> = new Vector.<int>();
-		var info:Object = WAVFile.decode(waveData);
+		var info:Object;
+		try {
+			info = WAVFile.decode(waveData);
+		}
+		catch (e:*) {
+			Scratch.app.log(LogLevel.WARNING, 'Error extracting samples from WAV file', {error: e});
+			result.push(0); // a WAV file must have at least one sample
+			return result;
+		}
 		var i:int;
 		var v:int;
 		if (info.encoding == 1) {
@@ -131,7 +141,7 @@ public class WAVFile {
 		} else if (info.encoding == 3) {
 			waveData.position = info.sampleDataStart;
 			for (i = 0; i < info.sampleCount; i++) {
-				var f:Number = waveData.readFloat();
+				var f:Number = (info.bitsPerSample == 32 ? waveData.readFloat() : waveData.readDouble());
 				if (f > 1.0) f = 1.0;
 				if (f < -1.0) f = -1.0;
 				v = f * 0x7fff;
@@ -319,6 +329,10 @@ public class WAVFile {
 		var lastByte:int = -1; // -1 indicates that there is no saved lastByte
 		var out:ByteArray = new ByteArray();
 		out.endian = Endian.LITTLE_ENDIAN;
+
+		// Bail and return no samples if we have no data
+		if (!compressedData) return out;
+
 		compressedData.position = 0;
 		while (true) {
 			if (((compressedData.position % blockSize) == 0) && (lastByte < 0)) { // read block header

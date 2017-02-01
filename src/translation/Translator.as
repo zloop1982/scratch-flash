@@ -18,15 +18,19 @@
  */
 
 package translation {
+import blocks.Block;
+
 import flash.events.Event;
 import flash.net.*;
 import flash.utils.ByteArray;
 import flash.utils.Dictionary;
-import blocks.Block;
+
+import logging.LogLevel;
 
 import mx.utils.StringUtil;
 
 import uiwidgets.Menu;
+
 import util.*;
 
 public class Translator {
@@ -37,7 +41,7 @@ public class Translator {
 	public static var rightToLeft:Boolean;
 	public static var rightToLeftMath:Boolean; // true only for Arabic
 
-	private static const font12:Array = ['fa', 'he','ja','ja_HIRA', 'zh_CN'];
+	private static const font12:Array = ['fa', 'he','ja','ja_HIRA', 'zh_CN', 'zh-cn', 'zh_TW', 'zh-tw'];
 	private static const font13:Array = ['ar'];
 
 	private static var dictionary:Object = {};
@@ -61,8 +65,8 @@ public class Translator {
 		function gotPOFile(data:ByteArray):void {
 			if (data) {
 				dictionary = parsePOData(data);
+				setFontsFor(lang); // also sets currentLang
 				checkBlockTranslations();
-				setFontsFor(lang);
 			}
 			Scratch.app.translationChanged();
 		}
@@ -77,7 +81,7 @@ public class Translator {
 	public static function setLanguage(lang:String):void {
 		if ('import translation file' == lang) { importTranslationFromFile(); return; }
 		if ('set font size' == lang) { fontSizeMenu(); return; }
-		
+
 		setLanguageValue(lang);
 		Scratch.app.server.setSelectedLang(lang);
 	}
@@ -120,7 +124,7 @@ public class Translator {
 		rightToLeft = rtlLanguages.indexOf(lang) > -1;
 		rightToLeftMath = ('ar' == lang);
 		Block.setFonts(10, 9, true, 0); // default font settings
-		if (font12.indexOf(lang) > -1) Block.setFonts(11, 10, false, 0);
+		if (font12.indexOf(lang) > -1) Block.setFonts(12, 11, false, 0);
 		if (font13.indexOf(lang) > -1) Block.setFonts(13, 12, false, 0);
 	}
 
@@ -221,9 +225,9 @@ public class Translator {
 		var translatedSpec:String = map(spec);
 		if (translatedSpec == spec) return; // not translated
 		if (!argsMatch(extractArgs(spec), extractArgs(translatedSpec))) {
-			Scratch.app.log('Block argument mismatch:');
-			Scratch.app.log('    ' + spec);
-			Scratch.app.log('    ' + translatedSpec);
+			Scratch.app.log(
+					LogLevel.WARNING, 'Block argument mismatch',
+					{language: currentLang, spec: spec, translated: translatedSpec});
 			delete dictionary[spec]; // remove broken entry from dictionary
 		}
 	}
